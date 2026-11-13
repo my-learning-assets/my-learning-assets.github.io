@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>自建 Harness：把五种答案组合成一条路线 / Building Your Own Harness: Composing Five Answers into One Path — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 12</p>
+      <h1>自建 Harness：把五种答案组合成一条路线</h1>
+      <p class="subtitle">Building Your Own Harness: Composing Five Answers into One Path</p>
+      <p class="meta">2026-10-26 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">系列最后一篇把前面的拆解收拢：自建 harness 的六步路线、每步借哪个项目的经验、以及最容易踩的坑。</p>
+      <p>第一步是会话与工作项：决定“一次任务”的边界，选择工作项模型（借 superagent）或纯会话模型（借 opencode），把检查点写进设计而不是事后补。第二步是工具协议：参数校验、超时、输出截断、结构化结果，一个都不能少。</p>
+      <p>第三步是权限：默认拒绝、按规则分流、危险操作人工审批，权限检查必须在执行之前。第四步是隔离：从容器开始，凭据放外部，网络默认拒绝；需要密度时再引入快照与池化（借 Substrate）。</p>
+      <p>第五步是上下文与记忆：预算分配、压缩策略、来源可追溯的召回（借 Octop 的可携带记忆）。第六步是可观测与评测：结构化事件、审计账本、回放与黄金任务，先有评测再谈自主。</p>
+      <p>组合而不是发明：插件化借 DSH，主动触发借 superagent，隔离与密度借 Substrate，多端与记忆借 Octop，多端会话借 opencode。每一块都有人踩过坑，你要做的是把它们拼成一个适合自己规模的系统。</p>
+      <p>路线图里最容易拖延的是评测：没有评测，其他模块的改进都无法被证明。先把黄金任务跑起来，再谈更多自主性——这是本系列最想强调的一条。</p>
+      <p>最后，别把 harness 当成一次性工程：它会长出插件、长出多端、长出沙箱。每一层边界都留好扩展点，比一次性写对更现实。</p>
+      <p>起步阶段建议用单体：一个进程、一个数据库、一套日志，先证明任务完成率，再谈扩展。</p>
+      <p>每个季度做一次“边界审计”：哪些模块耦合过深、哪些权限过宽、哪些插件该淘汰，持续修剪比一次设计更重要。</p>
+      <p>这条路线没有终点：harness 会随模型、工具与团队一起演化。保持可替换的边界，就是保持长期的可维护性。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a12-f01.png" alt="figure 1">
+        <figcaption>图 1 · Six-step build order / Fig. 1 — Six-step build order</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a12-f02.png" alt="figure 2">
+        <figcaption>图 2 · The whole loop / Fig. 2 — The whole loop</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a12-f03.png" alt="figure 3">
+        <figcaption>图 3 · Borrow from five projects / Fig. 3 — Borrow from five projects</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a12-f04.png" alt="figure 4">
+        <figcaption>图 4 · Common traps / Fig. 4 — Common traps</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a12-f05.png" alt="figure 5">
+        <figcaption>图 5 · First milestones / Fig. 5 — First milestones</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a12-f06.png" alt="figure 6">
+        <figcaption>图 6 · From intent to evidence / Fig. 6 — From intent to evidence</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a12-f07.png" alt="figure 7">
+        <figcaption>图 7 · Your harness today / Fig. 7 — Your harness today</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a12-f08.png" alt="figure 8">
+        <figcaption>图 8 · What to borrow first / Fig. 8 — What to borrow first</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Building Your Own Harness: Composing Five Answers into One Path</h2>
+      <p class="lede">The final piece gathers the dissection: a six-step path to building your own harness, which project each step borrows from, and the traps that hurt most.</p>
+      <p>Step one is sessions and work items: decide what one task is, pick a work-item model (borrow superagent) or a pure session model (borrow opencode), and put checkpoints into the design rather than bolting them on. Step two is the tool protocol: validation, timeouts, output truncation and structured results — none optional.</p>
+      <p>Step three is permission: default-deny, rule-based routing, human approval for dangerous actions, checked before execution. Step four is isolation: start with containers, keep credentials outside, deny egress by default; add snapshots and pooling (borrow Substrate) only when density demands it.</p>
+      <p>Step five is context and memory: budgets, compaction, provenance-aware recall (borrow Octop's portable memory). Step six is observability and evaluation: structured events, an audit ledger, replay and golden tasks — get evaluation before autonomy.</p>
+      <p>Compose, don't reinvent: pluginization from DSH, proactive triggers from superagent, isolation and density from Substrate, surfaces and memory from Octop, multi-surface sessions from opencode. Each piece has been through someone's failures; your job is to assemble them at your scale.</p>
+      <p>Evaluation is the most postponed item on any roadmap: without it, no improvement can be proven. Get golden tasks running before asking for more autonomy.</p>
+      <p>Start monolithic: one process, one database, one log stream. Prove task completion first, then talk about scale.</p>
+      <p>Do a boundary audit every quarter: which modules are too coupled, which permissions too wide, which plugins should retire. Continuous pruning beats one perfect design.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a></li>
+        <li><a href="https://github.com/deepseek-ai/dsh-superagent-prototype">deepseek-ai/dsh-superagent-prototype</a></li>
+        <li><a href="https://github.com/agent-substrate/substrate">agent-substrate/substrate</a></li>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        <li><a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

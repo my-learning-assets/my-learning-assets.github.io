@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>性能与密度：Substrate 的 500 毫秒告诉了我们什么 / Density and Performance: What Substrate's 500 Milliseconds Teach — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 10</p>
+      <h1>性能与密度：Substrate 的 500 毫秒告诉了我们什么</h1>
+      <p class="subtitle">Density and Performance: What Substrate's 500 Milliseconds Teach</p>
+      <p class="meta">2026-10-16 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">agent 大部分时间在等待。Substrate 把“空闲即挂起、请求即恢复”做成了基础设施，这是密度提升一个数量级的根源。</p>
+      <p>一个 agent 的时间分布通常是：思考（模型调用）、工具执行、等待人类。前两者之外的空闲时间占比很高。Substrate 的判断是：不要为等待付费，把空闲 actor 快照出内存，请求到来再恢复。</p>
+      <p>这需要三项能力：快照（把内存与文件系统状态保存）、恢复（在任意 worker 上重建）、路由（把请求定向到恢复后的 actor）。Substrate 给出的数字是恢复小于 500 毫秒、每秒 500 次激活、10–30 倍超售。</p>
+      <p>对自建 harness 的启示不是“照抄快照”，而是“把状态与执行分离”：会话与检查点落在存储层，执行层可以在任意机器上重建。做到这一点，扩容与容错都会容易得多。</p>
+      <p>代价也要算清楚：快照有 IO 成本，恢复有冷启动开销，频繁挂起恢复会放大延迟。正确的策略是按任务价值决定驻留与挂起的阈值，而不是一刀切。</p>
+      <p>密度提升的前提是负载真的稀疏：如果 agent 一直满载，快照恢复只会增加开销。上线前先量时间分布，别拿别人的数字套自己的场景。</p>
+      <p>恢复的 SLO 要写进设计：P50 与 P99 的目标不同，池的预热策略、快照大小、存储带宽都要围绕目标做取舍。</p>
+      <p>快照与恢复要压测：用真实负载跑峰值、跑抖动，测出 P99 而不是只看平均值。</p>
+      <p>成本模型要透明：恢复、快照、存储、带宽各自的单价算清楚，密度收益才不会被隐藏成本吃掉。</p>
+      <p>最后，密度是手段不是目的：用户感知的是延迟与成功率，别为了漂亮的超售比牺牲体验。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a10-f01.png" alt="figure 1">
+        <figcaption>图 1 · Where time goes / Fig. 1 — Where time goes</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a10-f02.png" alt="figure 2">
+        <figcaption>图 2 · Suspend and resume / Fig. 2 — Suspend and resume</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a10-f03.png" alt="figure 3">
+        <figcaption>图 3 · Density levers / Fig. 3 — Density levers</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a10-f04.png" alt="figure 4">
+        <figcaption>图 4 · Trade-offs / Fig. 4 — Trade-offs</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a10-f05.png" alt="figure 5">
+        <figcaption>图 5 · Getting density / Fig. 5 — Getting density</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a10-f06.png" alt="figure 6">
+        <figcaption>图 6 · From idle to active / Fig. 6 — From idle to active</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a10-f07.png" alt="figure 7">
+        <figcaption>图 7 · Runtime layers / Fig. 7 — Runtime layers</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a10-f08.png" alt="figure 8">
+        <figcaption>图 8 · What each metric means / Fig. 8 — What each metric means</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Density and Performance: What Substrate's 500 Milliseconds Teach</h2>
+      <p class="lede">Agents spend most of their lives waiting. Substrate turns idle-suspend and request-resume into infrastructure, and that is where an order-of-magnitude density gain comes from.</p>
+      <p>An agent's time splits into thinking (model calls), tool execution, and waiting for humans. Waiting dominates. Substrate's conclusion: do not pay for waiting — snapshot idle actors out of memory and resume them when a request arrives.</p>
+      <p>That requires three capabilities: snapshot (capture memory and filesystem state), resume (rebuild anywhere in the pool), and routing (direct requests to the resumed actor). Substrate reports resume under 500 milliseconds, 500 activations per second, and 10-30x oversubscription.</p>
+      <p>The lesson for a home-grown harness is not to copy snapshots but to separate state from execution: sessions and checkpoints live in storage, execution can be rebuilt on any machine. Do that and scaling and fault tolerance both get easier.</p>
+      <p>Count the costs too: snapshots cost IO, resume has cold-start overhead, and frequent suspend-resume inflates latency. The right policy sets residency thresholds by task value instead of applying one rule to everything.</p>
+      <p>Density gains assume sparse load: if agents are always busy, snapshotting only adds overhead. Measure the time distribution before copying someone else's numbers.</p>
+      <p>Load-test snapshots and resumes with real traffic, including jitter, and measure P99 instead of averages.</p>
+      <p>Keep the cost model transparent: price resume, snapshots, storage and bandwidth separately, or hidden costs eat the density gain. Density is a means; users feel latency and success rate.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/agent-substrate/substrate">agent-substrate/substrate</a></li>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

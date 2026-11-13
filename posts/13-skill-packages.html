@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>技能包：能力如何被打包、分发与治理 / Skill Packages: How Capabilities Are Packaged, Distributed and Governed — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 13</p>
+      <h1>技能包：能力如何被打包、分发与治理</h1>
+      <p class="subtitle">Skill Packages: How Capabilities Are Packaged, Distributed and Governed</p>
+      <p class="meta">2026-11-13 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">从插件到技能包，agent 的能力正在从“写死在代码里”变成“可分发、可版本化的制品”。这一篇讨论技能包的解剖结构、分发链路与治理成本。</p>
+      <p>所谓技能包，是把一段能力所需的全部东西收进一个可分发单元：清单（名字、版本、兼容性）、指令（给模型的说明与示例）、脚本与工具（真正执行的代码或 API 封装）、资源（模板、知识文件）以及签名。装一个技能包，等于给 harness 增加一种“会做事的方式”。</p>
+      <p>这和插件不同：插件扩展的是 harness 的机制（模型适配、UI、存储），技能包扩展的是 agent 的行为（会写周报、会做数据核对、会整理会议纪要）。机制要稳定，行为要繁荣——两者的生命周期与治理策略应该分开设计。</p>
+      <p>分发链路决定信任模型：来自社区市场的技能包和来自内部的技能包，需要的审核强度完全不同。清单里声明所需权限（能读哪些目录、能访问哪些域名），安装时由 harness 展示给用户确认，运行前再由权限引擎二次校验。</p>
+      <p>治理是最容易被低估的部分：版本要语义化、旧版本要有弃用窗口、签名要能验证、来源要可追溯。一个没有治理的技能市场，很快会变成“谁都不敢装”的荒地。</p>
+      <p>对照五个项目：DSH 用插件承载能力但边界在机制层；Octop 用技能目录与专家配置组合行为；superagent 把行为打包成 bundle；opencode 用 agent 定义与工具集；Substrate 则把 MCP server 当作可沙箱化的技能载体。技能包的形态不同，治理问题相同。</p>
+      <p>最后是评测：技能包必须自带验收用例（输入、期望行为、禁止行为），安装前跑一遍，升级时再跑一遍。没有测试的技能包，不配进入生产环境。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a13-f01.png" alt="figure 1">
+        <figcaption>图 1 · Anatomy of a skill package / Fig. 1 — Anatomy of a skill package</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a13-f02.png" alt="figure 2">
+        <figcaption>图 2 · From install to run / Fig. 2 — From install to run</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a13-f03.png" alt="figure 3">
+        <figcaption>图 3 · Where skills come from / Fig. 3 — Where skills come from</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a13-f04.png" alt="figure 4">
+        <figcaption>图 4 · Governance tensions / Fig. 4 — Governance tensions</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a13-f05.png" alt="figure 5">
+        <figcaption>图 5 · Shipping a skill / Fig. 5 — Shipping a skill</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a13-f06.png" alt="figure 6">
+        <figcaption>图 6 · Package into capability / Fig. 6 — Package into capability</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a13-f07.png" alt="figure 7">
+        <figcaption>图 7 · Skill internals / Fig. 7 — Skill internals</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a13-f08.png" alt="figure 8">
+        <figcaption>图 8 · How projects package behavior / Fig. 8 — How projects package behavior</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Skill Packages: How Capabilities Are Packaged, Distributed and Governed</h2>
+      <p class="lede">From plugins to skill packages, agent capabilities are shifting from hard-coded logic to distributable, versioned artifacts. This piece examines their anatomy, distribution chain and governance cost.</p>
+      <p>A skill package gathers everything a capability needs into one distributable unit: a manifest (name, version, compatibility), instructions (guidance and examples for the model), scripts and tools (the code or API wrappers that actually execute), resources (templates, knowledge files) and a signature. Installing one adds a way of doing things to the harness.</p>
+      <p>This differs from plugins: plugins extend harness mechanics (model adapters, UI, storage), while skill packages extend agent behavior (writing reports, reconciling data, summarizing meetings). Mechanics should be stable; behavior should flourish — their lifecycles and governance deserve separate designs.</p>
+      <p>The distribution chain defines the trust model: community-marketplace skills and internal skills need very different review depth. The manifest declares required permissions (which directories to read, which domains to reach); the harness shows them at install time and the policy engine re-checks at run time.</p>
+      <p>Governance is the most underrated part: semantic versions, deprecation windows, verifiable signatures, traceable provenance. A skill marketplace without governance quickly becomes a wasteland nobody dares to install from.</p>
+      <p>Across the five projects: DSH carries capability through plugins but keeps boundaries at the mechanics layer; Octop composes behavior from skill directories and expert configuration; superagent ships behavior as bundles; opencode defines agents with tool sets; Substrate treats MCP servers as sandboxable skill carriers. The shapes differ; the governance questions do not.</p>
+      <p>Finally, evaluation: a skill package must ship acceptance cases (inputs, expected behavior, forbidden behavior), run before install and again on upgrade. A skill without tests does not belong in production.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a></li>
+        <li><a href="https://github.com/deepseek-ai/dsh-superagent-prototype">deepseek-ai/dsh-superagent-prototype</a></li>
+        <li><a href="https://github.com/agent-substrate/substrate">agent-substrate/substrate</a></li>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        <li><a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>同一个任务，五种答案：五个项目怎么定义 Harness / One Job, Five Answers: How Five Projects Define a Harness — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 01</p>
+      <h1>同一个任务，五种答案：五个项目怎么定义 Harness</h1>
+      <p class="subtitle">One Job, Five Answers: How Five Projects Define a Harness</p>
+      <p class="meta">2026-09-01 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">把模型接进真实世界的那层工程，五个项目给出了五种侧重不同的回答。这一篇先把全景铺开，后面十一篇逐一拆解。</p>
+      <p>harness 的职责可以压成一句话：把一次意图变成一串可执行、可审计、可恢复的动作。deepseek-harness 用插件内核回答“怎么长”，dsh-superagent 用工作项回答“什么时候动”，Substrate 用沙箱回答“在哪里跑”，Octop 用单进程回答“怎么部署”，opencode 用 client/server 回答“在哪里用”。</p>
+      <p>把这五个答案叠在一起，会得到一条共同的骨架：入口归一化、会话与工作项、工具与权限、隔离执行、检查点与审计。差别不在骨架，而在每一层的默认值与权衡顺序。</p>
+      <p>三种部署形态浮出水面：单进程（Octop）把运维成本压到最低；Kubernetes 沙箱（Substrate）把隔离与密度推到最高；client/server（opencode）把多端体验做到最好。选择哪一个，取决于团队规模与安全预算，而不是趋势。</p>
+      <p>接下来的篇章会按这条骨架逐层展开：会话、工具、权限、插件、沙箱、多端、上下文、事件、可观测性、性能与部署，最后回到“如何自建”。每一篇都会指出五个项目在同一问题上的分歧点。</p>
+      <p>衡量一套 harness 好坏，可以只看三个指标：任务完成率、单位成本、事故半径。完成率取决于循环与工具，成本取决于上下文与并发，事故半径取决于权限与隔离——这三件事恰好对应后面章节的三条主线。</p>
+      <p>阅读顺序建议沿骨架走：先看会话（第 2 篇），再看工具与权限（第 3 篇），然后插件与沙箱（第 4、5 篇），最后多端、上下文与部署。每一篇可独立阅读，连起来才是完整的施工图。</p>
+      <p>五个项目的 README 有一个共同点：它们都在描述边界——DSH 描述插件边界，superagent 描述行动边界，Substrate 描述隔离边界，Octop 描述进程边界，opencode 描述客户端边界。学会看边界，比看功能列表更能理解一个 harness。</p>
+      <p>另一个共同点是克制：superagent 只在被要求时行动；Substrate 默认拒绝网络；Octop 默认单用户隔离；opencode 的 plan agent 默认只读；DSH 的内核默认什么都不会。默认值决定了系统的性格。</p>
+      <p>本系列不做代码走读，而是把每个项目当作一份架构决策记录来读：它选择了什么、放弃了什么、代价落在哪里。读完之后，你应该能画出一张属于自己的 harness 版图。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a01-f01.png" alt="figure 1">
+        <figcaption>图 1 · Harness layers shared by five projects / Fig. 1 — Harness layers shared by five projects</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a01-f02.png" alt="figure 2">
+        <figcaption>图 2 · One task through any harness / Fig. 2 — One task through any harness</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a01-f03.png" alt="figure 3">
+        <figcaption>图 3 · Five answers to one job / Fig. 3 — Five answers to one job</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a01-f04.png" alt="figure 4">
+        <figcaption>图 4 · Control versus isolation / Fig. 4 — Control versus isolation</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a01-f05.png" alt="figure 5">
+        <figcaption>图 5 · Adoption sequence / Fig. 5 — Adoption sequence</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a01-f06.png" alt="figure 6">
+        <figcaption>图 6 · Surfaces into one processor / Fig. 6 — Surfaces into one processor</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a01-f07.png" alt="figure 7">
+        <figcaption>图 7 · Module map of a harness / Fig. 7 — Module map of a harness</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a01-f08.png" alt="figure 8">
+        <figcaption>图 8 · Three deployment shapes / Fig. 8 — Three deployment shapes</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>One Job, Five Answers: How Five Projects Define a Harness</h2>
+      <p class="lede">The layer that turns a model into a working system has five very different expressions in these projects. This opening piece maps the landscape before the next eleven dissect it.</p>
+      <p>A harness has one job: turn an intent into a sequence of executable, auditable, recoverable actions. deepseek-harness answers "how does it grow" with a plugin kernel; dsh-superagent answers "when does it act" with work items; Substrate answers "where does it run" with sandboxes; Octop answers "how is it deployed" with a single process; opencode answers "where is it used" with a client/server split.</p>
+      <p>Overlay the five answers and a shared skeleton appears: normalized entry points, sessions and work items, tools and policy, isolated execution, checkpoints and audit. The differences are not in the skeleton but in defaults and the order of trade-offs.</p>
+      <p>Three deployment shapes emerge: single process (Octop) minimizes operations; Kubernetes sandboxes (Substrate) maximize isolation and density; client/server (opencode) maximizes multi-surface experience. The right choice depends on team size and security budget, not fashion.</p>
+      <p>The rest of the series walks the skeleton layer by layer: sessions, tools, policy, plugins, sandboxes, surfaces, context, events, observability, performance and deployment — ending with a practical plan for building your own.</p>
+      <p>Three metrics tell whether a harness is good: task completion, unit cost, and blast radius. Completion depends on the loop and tools, cost on context and concurrency, blast radius on permission and isolation — precisely the three threads of the chapters ahead.</p>
+      <p>All five READMEs describe boundaries: DSH the plugin boundary, superagent the action boundary, Substrate the isolation boundary, Octop the process boundary, opencode the client boundary. Reading boundaries teaches more than reading feature lists.</p>
+      <p>They also share restraint: act only when asked, deny the network by default, isolate by default, read-only by default, an ignorant kernel by default. Defaults define a system's character more than its capabilities.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a></li>
+        <li><a href="https://github.com/deepseek-ai/dsh-superagent-prototype">deepseek-ai/dsh-superagent-prototype</a></li>
+        <li><a href="https://github.com/agent-substrate/substrate">agent-substrate/substrate</a></li>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        <li><a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

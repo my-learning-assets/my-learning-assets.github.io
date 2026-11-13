@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>事件驱动与克制：主动型 Agent 的分寸从哪里来 / Event-driven Restraint: Where a Proactive Agent's Discipline Comes From — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 08</p>
+      <h1>事件驱动与克制：主动型 Agent 的分寸从哪里来</h1>
+      <p class="subtitle">Event-driven Restraint: Where a Proactive Agent's Discipline Comes From</p>
+      <p class="meta">2026-10-06 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">主动型 agent 的关键不是“自己找活干”，而是知道什么时候不该动。这一篇拆解 superagent 的触发、去重与回复闭环。</p>
+      <p>主动型 agent 的输入端是事件：GitHub 的 issue、PR 与 webhook，飞书的消息与提及，外加定时任务。事件必须先过两道闸：签名校验确认来源可信，投递 ID 去重防止重复处理。</p>
+      <p>第二道闸是规则：不是每个事件都该拉起 agent。superagent 的原则是“被要求时才行动，或团队规则允许时才行动”。这条原则把噪音挡在外面，也让 agent 的行为可预测。</p>
+      <p>工作项被领取后进入独立会话与目录，完成后回到原线程回复。web 面板列出需要人介入的事项——人只在必须决策时出现，这是产品层的克制。</p>
+      <p>工程上的三个坑：事件风暴（一次性涌入大量事件）、重复投递（GitHub 会重试）、回复错位（回到错误的线程）。对应解法是队列限流、幂等表与严格的路由字段。</p>
+      <p>事件系统的容量规划要有上限：队列积压到阈值就拒绝新事件并告警，比无限堆积然后雪崩好得多。主动型系统的第一指标是“不添乱”。</p>
+      <p>面板是产品的一部分：把“等待人决策”的事项列清楚，比给每个 agent 配一个聊天窗口更有效——人只需要一个待办列表。</p>
+      <p>事件规则建议用配置而非代码：谁可以触发、哪些标签生效、回复模板，都放在配置里，团队可以自己改。</p>
+      <p>主动型 agent 需要“静默期”：连续触发失败后自动冷却，避免在坏数据上反复行动。</p>
+      <p>最后，所有主动行为都要可撤回：PR 可以关、消息可以删、面板项可以忽略——设计时就把撤回路径想好。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a08-f01.png" alt="figure 1">
+        <figcaption>图 1 · Event intake / Fig. 1 — Event intake</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a08-f02.png" alt="figure 2">
+        <figcaption>图 2 · From event to action / Fig. 2 — From event to action</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a08-f03.png" alt="figure 3">
+        <figcaption>图 3 · Event sources / Fig. 3 — Event sources</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a08-f04.png" alt="figure 4">
+        <figcaption>图 4 · Act or stay quiet / Fig. 4 — Act or stay quiet</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a08-f05.png" alt="figure 5">
+        <figcaption>图 5 · Handling an event / Fig. 5 — Handling an event</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a08-f06.png" alt="figure 6">
+        <figcaption>图 6 · Noise filtered into work / Fig. 6 — Noise filtered into work</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a08-f07.png" alt="figure 7">
+        <figcaption>图 7 · Event anatomy / Fig. 7 — Event anatomy</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a08-f08.png" alt="figure 8">
+        <figcaption>图 8 · Restraint by design / Fig. 8 — Restraint by design</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Event-driven Restraint: Where a Proactive Agent's Discipline Comes From</h2>
+      <p class="lede">The point of a proactive agent is not finding work by itself, but knowing when not to act. This piece dissects dsh-superagent's triggers, deduplication and reply loop.</p>
+      <p>Proactive agents listen to events: GitHub issues, PRs and webhooks, Feishu messages and mentions, plus scheduled jobs. Events pass two gates first: signature verification for provenance, and delivery-ID deduplication to prevent double processing.</p>
+      <p>The second gate is rules: not every event deserves an agent. dsh-superagent's principle is to act when asked, or when team rules allow it. That keeps noise out and behavior predictable.</p>
+      <p>A claimed work item runs in its own session and directory and replies in the original thread. A web panel lists items that need a human — people appear only for decisions.</p>
+      <p>Three engineering traps: event storms (a burst of events), duplicate deliveries (GitHub retries), and misrouted replies (answering the wrong thread). The answers are queue throttling, an idempotency table, and strict routing fields.</p>
+      <p>Event systems need a ceiling: reject and alert when the queue backs up, instead of stacking silently until it collapses. The first metric of a proactive system is not adding noise.</p>
+      <p>Express event rules as configuration, not code: who may trigger, which labels count, which reply template applies. Teams can then change behavior without shipping.</p>
+      <p>Proactive agents need quiet periods: cooldown after repeated failures prevents acting on bad data. And every proactive action must be retractable — a PR can close, a message can be deleted, a panel item can be dismissed.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/deepseek-ai/dsh-superagent-prototype">deepseek-ai/dsh-superagent-prototype</a></li>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

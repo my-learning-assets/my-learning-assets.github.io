@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>单进程、多端入口：Octop 的反直觉架构 / Single Process, Many Surfaces: Octop's Counterintuitive Architecture — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 06</p>
+      <h1>单进程、多端入口：Octop 的反直觉架构</h1>
+      <p class="subtitle">Single Process, Many Surfaces: Octop's Counterintuitive Architecture</p>
+      <p class="meta">2026-09-26 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">当多 agent 平台纷纷上消息队列时，Octop 把 Web、IM、cron 全部塞进一个进程。这一篇分析这种取舍在什么规模下成立。</p>
+      <p>Octop 的架构图几乎简单到令人不安：三个入口适配器把消息归一化成内部事件，交给同一个 HarnessProcessor；所有状态落在 SQLite（可换 Postgres），重启后从数据库重建。多用户、专家、记忆、知识库都围绕这个单进程展开。</p>
+      <p>收益是部署与调试的极致简化：一个 `octop run` 启动全部能力，日志在一个地方，状态在一个文件里。对家庭或小团队，这比“能扩到一千节点”实在得多。</p>
+      <p>代价是扩展靠纵向：并发上去时只能加 CPU 和内存；某个入口的长任务可能阻塞其他入口（需要通过队列或异步化缓解）。Octop 通过异步处理与任务回执来控制这种影响。</p>
+      <p>一个容易被抄走的细节是回复路由：每条入站消息带着 reply_to，处理完成后由适配器把结果送回原渠道。入口千差万别，处理只有一条路——这就是多端架构的全部秘密。</p>
+      <p>单进程最大的风险是“一坏全坏”：一个入口的死循环会拖垮所有入口。缓解手段是入口级隔离（线程或进程池）与超时熔断，而不是祈祷不出错。</p>
+      <p>消息幂等要落在存储层：用 (surface, event_id) 建唯一索引，重复投递自然被拦；内存去重在重启后失效，靠不住。</p>
+      <p>单进程并不等于单线程：处理器内部用异步与工作池保证入口互不阻塞，这是 Octop 能撑住多端的前提。</p>
+      <p>数据目录要可迁移：把数据库、工作区、密钥分目录管理，升级与备份都会简单一个数量级。</p>
+      <p>多端架构的验收标准不是“Web 能用”，而是“同一条消息从任意入口进来，行为一致、回复回对地方”。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a06-f01.png" alt="figure 1">
+        <figcaption>图 1 · Octop stack / Fig. 1 — Octop stack</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a06-f02.png" alt="figure 2">
+        <figcaption>图 2 · Message path / Fig. 2 — Message path</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a06-f03.png" alt="figure 3">
+        <figcaption>图 3 · Surfaces served by one process / Fig. 3 — Surfaces served by one process</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a06-f04.png" alt="figure 4">
+        <figcaption>图 4 · Single-process trade-offs / Fig. 4 — Single-process trade-offs</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a06-f05.png" alt="figure 5">
+        <figcaption>图 5 · Adding a surface / Fig. 5 — Adding a surface</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a06-f06.png" alt="figure 6">
+        <figcaption>图 6 · Three entrances, one path / Fig. 6 — Three entrances, one path</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a06-f07.png" alt="figure 7">
+        <figcaption>图 7 · Octop components / Fig. 7 — Octop components</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a06-f08.png" alt="figure 8">
+        <figcaption>图 8 · Role of each layer / Fig. 8 — Role of each layer</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Single Process, Many Surfaces: Octop's Counterintuitive Architecture</h2>
+      <p class="lede">While multi-agent platforms reach for message queues, Octop puts Web, IM and cron into a single process. This piece examines when that trade-off holds.</p>
+      <p>Octop's architecture is almost disarming: three entry adapters normalize messages into internal events and hand them to one HarnessProcessor; all state lives in SQLite (or Postgres) and is rebuilt from the database on restart. Multi-user support, experts, memory and knowledge bases all hang off that single process.</p>
+      <p>The gain is extreme simplicity in deployment and debugging: one `octop run` starts everything, logs are in one place, state is in one file. For a household or a small team this beats "scales to a thousand nodes".</p>
+      <p>The cost is vertical scaling: more concurrency means more CPU and memory, and a long task on one surface can block others unless queued or made asynchronous. Octop mitigates with async handling and acknowledgements.</p>
+      <p>One detail worth copying is reply routing: every inbound message carries reply_to, and the adapter sends the result back to the original channel. Entrances differ wildly; processing takes one path — that is the whole secret of multi-surface design.</p>
+      <p>The biggest single-process risk is one-bad-for-all: a hot loop in one surface can starve the others. Mitigate with per-entry isolation and circuit breakers instead of hoping nothing fails.</p>
+      <p>Single process does not mean single thread: async handlers and worker pools keep surfaces from blocking each other, which is how Octop survives multiple channels at once.</p>
+      <p>Keep the data directory portable: separate database, workspaces and secrets so upgrades and backups stay a magnitude simpler. The acceptance test is not "web works" but "any entrance behaves the same and replies land in the right place".</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        <li><a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

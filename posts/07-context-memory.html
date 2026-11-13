@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>上下文与记忆：预算、压缩与“记忆该跟谁走” / Context and Memory: Budgets, Compaction, and Who Owns the Memory — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 07</p>
+      <h1>上下文与记忆：预算、压缩与“记忆该跟谁走”</h1>
+      <p class="subtitle">Context and Memory: Budgets, Compaction, and Who Owns the Memory</p>
+      <p class="meta">2026-10-01 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">上下文窗口是预算，不是仓库。这一篇对照 Octop 的可携带记忆与常见的检索式上下文，讨论“记什么、怎么取、何时删”。</p>
+      <p>上下文管理的目标是让模型在有限窗口里看到最该看的东西。工程手段是预算分配：系统提示与工具描述是固定成本，最近几轮是高优先级，检索到的记忆是弹性部分，还要预留空间给输出。</p>
+      <p>压缩策略按代价排序：先丢弃低价值内容（重复的工具输出），再对旧轮次做结构化摘要（保留决策、改动与未决问题），最后才动用模型摘要。摘要要有固定 schema，否则格式漂移会让模型越读越乱。</p>
+      <p>Octop 的记忆设计强调“可携带”：数据跟工作区走，而不是锁在某个服务里。这在多 agent 场景很重要——换一个 agent 接管任务，记忆不必重建。</p>
+      <p>需要警惕的是检索噪音与陈旧事实：召回太多会污染上下文，召回太旧会让 agent 依据过时信息行动。实用做法是每条记忆带来源与时间，重排时把来源与新鲜度纳入打分。</p>
+      <p>记忆写入要有节制：只在“用户表达偏好、任务做出决策、会话结束”三个时机提炼，其余时间宁可少写。记忆越多，检索越难，噪音越大。</p>
+      <p>上下文里最好保留记忆的来源编号：一旦模型引用错误事实，可以顺着编号回溯到原始会话，审计与纠错都会快很多。</p>
+      <p>压缩策略要可观察：记录每次压缩前后的 token 数与摘要内容，才能判断压缩是否伤害了任务质量。</p>
+      <p>检索要做“负样本”测试：故意问一些不该被召回的问题，确认系统不会把无关记忆塞进上下文。</p>
+      <p>记忆的删除同样重要：用户要求遗忘时，要能从主库、索引与备份中一并删除，这是合规底线。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a07-f01.png" alt="figure 1">
+        <figcaption>图 1 · Context pipeline / Fig. 1 — Context pipeline</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a07-f02.png" alt="figure 2">
+        <figcaption>图 2 · Building one prompt / Fig. 2 — Building one prompt</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a07-f03.png" alt="figure 3">
+        <figcaption>图 3 · What fills the window / Fig. 3 — What fills the window</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a07-f04.png" alt="figure 4">
+        <figcaption>图 4 · Four failure modes / Fig. 4 — Four failure modes</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a07-f05.png" alt="figure 5">
+        <figcaption>图 5 · Improving context quality / Fig. 5 — Improving context quality</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a07-f06.png" alt="figure 6">
+        <figcaption>图 6 · Inputs into one prompt / Fig. 6 — Inputs into one prompt</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a07-f07.png" alt="figure 7">
+        <figcaption>图 7 · Memory taxonomy / Fig. 7 — Memory taxonomy</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a07-f08.png" alt="figure 8">
+        <figcaption>图 8 · Octop versus common practice / Fig. 8 — Octop versus common practice</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Context and Memory: Budgets, Compaction, and Who Owns the Memory</h2>
+      <p class="lede">A context window is a budget, not a warehouse. This piece compares Octop's portable memory with retrieval-based context and asks what to store, how to recall, and when to forget.</p>
+      <p>Context management aims to show the model the most useful things in a limited window. The engineering tool is budgeting: system prompt and tool descriptions are fixed costs, recent turns are high priority, recalled memories are elastic, and output space must be reserved.</p>
+      <p>Compaction follows a cost order: drop low-value content (repeated tool output), summarize old turns into a fixed schema (decisions, changes, open questions), and only then let the model write a summary. The schema matters — drifting formats confuse the reader.</p>
+      <p>Octop's memory is deliberately portable: data travels with the workspace instead of being locked into a service. In multi-agent settings this matters — when another agent takes over, memory need not be rebuilt.</p>
+      <p>Beware retrieval noise and stale facts: recalling too much pollutes the prompt, recalling too old material makes agents act on outdated truths. A practical rule is to attach provenance and timestamps to every memory and include both in reranking.</p>
+      <p>Write memories sparingly: extract at preference statements, decisions and session ends; otherwise stay quiet. More memories make recall harder and noisier.</p>
+      <p>Make compaction observable: log token counts and summaries before and after so you can tell whether compression hurt task quality.</p>
+      <p>Test recall with negative samples: ask questions that should not retrieve anything and verify the system does not stuff unrelated memories into the prompt. Deletion matters too — forget means forget everywhere, including indexes and backups.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        <li><a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

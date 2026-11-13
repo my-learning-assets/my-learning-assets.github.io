@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>零信任沙箱：Substrate 如何把“不可信”当作默认假设 / Zero-trust Sandboxes: Substrate Treats Untrusted as the Default — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 05</p>
+      <h1>零信任沙箱：Substrate 如何把“不可信”当作默认假设</h1>
+      <p class="subtitle">Zero-trust Sandboxes: Substrate Treats Untrusted as the Default</p>
+      <p class="meta">2026-09-21 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">Substrate 的每个 actor 都按“可能被攻破”设计：微虚拟机隔离、默认拒绝网络、凭据不进沙箱。这一篇拆解它如何做到安全与密度兼得。</p>
+      <p>Substrate 的模型很干净：actor 是有状态的 agent 工作负载，worker 是预热好的执行槽位。空闲 actor 被快照挂起，请求到来时恢复——恢复时间控制在 500 毫秒内，每秒可完成 500 次激活，密度比普通容器高一个数量级。</p>
+      <p>安全设计围绕三个“不”：不共享边界（gVisor 或 microVM 隔离），不默认出网（默认拒绝、只允许经过网关），不持有凭据（凭据由 egress 网关在外侧注入）。即使提示注入攻破了 agent，它也拿不到可直接利用的密钥。</p>
+      <p>身份是第三条腿：每个活跃 actor 获得短时效的 SPIFFE 证书，网关可以按策略签发 JWT。身份与网络策略绑定，审计时能回答“哪个 agent、以什么身份、访问了哪里”。</p>
+      <p>这套设计的代价是工程复杂度：快照、恢复、身份轮转、网关策略都要自己维护。但对“成千上万不可信 agent 共享集群”的场景，这是唯一能同时满足安全与成本的路线。</p>
+      <p>快照不是备份：快照服务的是“恢复继续干活”，备份服务的是“灾难后重建”。两者要分开设计，别指望一套机制解决两个问题。</p>
+      <p>出口策略要能解释：被拒绝的请求应返回“为什么拒绝、找谁开白名单”，否则 agent 会把它当作随机错误不断重试，浪费预算。</p>
+      <p>沙箱的边界要能被验证：定期做逃逸测试与出口策略测试，把“假设安全”变成“证明安全”。</p>
+      <p>快照里可能包含敏感数据：落盘加密、生命周期管理、访问审计，一个都不能少。</p>
+      <p>对大多数团队，Substrate 的启示不是自建 microVM 平台，而是把“凭据不在工作负载里”这条原则抄走——它用最低成本消除了最高危的风险。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a05-f01.png" alt="figure 1">
+        <figcaption>图 1 · Security stack / Fig. 1 — Security stack</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a05-f02.png" alt="figure 2">
+        <figcaption>图 2 · A request that leaves the sandbox / Fig. 2 — A request that leaves the sandbox</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a05-f03.png" alt="figure 3">
+        <figcaption>图 3 · Runtime primitives / Fig. 3 — Runtime primitives</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a05-f04.png" alt="figure 4">
+        <figcaption>图 4 · Design tensions / Fig. 4 — Design tensions</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a05-f05.png" alt="figure 5">
+        <figcaption>图 5 · Adopting zero trust / Fig. 5 — Adopting zero trust</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a05-f06.png" alt="figure 6">
+        <figcaption>图 6 · Everything passes the gateway / Fig. 6 — Everything passes the gateway</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a05-f07.png" alt="figure 7">
+        <figcaption>图 7 · Actor anatomy / Fig. 7 — Actor anatomy</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a05-f08.png" alt="figure 8">
+        <figcaption>图 8 · Substrate versus DIY / Fig. 8 — Substrate versus DIY</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Zero-trust Sandboxes: Substrate Treats Untrusted as the Default</h2>
+      <p class="lede">Every Substrate actor is designed as if it might be compromised: microVM isolation, default-deny networking, credentials kept outside. This piece explains how it gets safety and density together.</p>
+      <p>Substrate's model is clean: actors are stateful agent workloads; workers are warm execution slots. Idle actors are snapshotted and suspended, then resumed when requests arrive — resume under 500 milliseconds, 500 activations per second, an order of magnitude denser than plain containers.</p>
+      <p>Security rests on three negations: no shared boundary (gVisor or microVM isolation), no default egress (deny all, pass through a gateway), no credentials inside (the egress gateway injects them outside). Even if prompt injection breaks the agent, it holds no directly usable keys.</p>
+      <p>Identity is the third leg: every active actor gets a short-lived SPIFFE certificate, and the gateway can mint per-actor JWTs. Identity tied to network policy means audits can answer which agent, under which identity, reached what.</p>
+      <p>The price is engineering complexity: snapshots, resume, identity rotation and gateway policy are all yours to run. But for thousands of untrusted agents sharing a cluster, it is the only route that satisfies security and cost at once.</p>
+      <p>Snapshots are not backups: snapshots resume work, backups rebuild after disaster. Design them separately instead of expecting one mechanism to solve both.</p>
+      <p>Sandbox boundaries must be tested: escape attempts and egress-policy tests on a schedule turn assumed safety into demonstrated safety.</p>
+      <p>Snapshots may contain sensitive data, so encryption at rest, lifecycle limits and access audit are not optional. For most teams the lesson is simpler than building microVMs: keep credentials out of the workload.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/agent-substrate/substrate">agent-substrate/substrate</a></li>
+        <li><a href="https://github.com/deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>三种部署形态：单进程、K8s 沙箱、Client/Server / Three Deployment Shapes: Single Process, K8s Sandboxes, Client/Server — agentic 笔记</title>
+  <style>
+:root{--ink:#17202e;--muted:#5b6b80;--line:#e5eaf1;--bg:#fbfcfe;--accent:#0f766e;--codebg:#101826}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC","Segoe UI",sans-serif}
+.site{max-width:820px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:.04em}.brand span{color:var(--accent)}
+nav a{color:var(--muted);text-decoration:none;margin-left:18px;font-size:14px}nav a:hover{color:var(--ink)}
+main{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+.kicker{font-size:12px;letter-spacing:.22em;color:var(--accent);font-weight:700;text-transform:uppercase;margin:0 0 10px}
+h1{font-size:34px;line-height:1.4;margin:0 0 6px;letter-spacing:.01em}
+.subtitle{color:var(--muted);font-size:18px;font-style:italic;margin:0 0 12px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 28px}
+.lede{font-size:19px;color:#303c4d;margin:0 0 30px;padding-left:18px;border-left:3px solid var(--accent)}
+p{margin:0 0 18px;color:#2c3849}
+figure{margin:26px 0 30px}
+figure img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line);background:#fff}
+figcaption{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+.figs-title{font-size:16px;letter-spacing:.08em;color:var(--muted);margin:36px 0 6px;text-transform:uppercase}
+.divider{margin:54px 0 10px;padding-top:26px;border-top:1px solid var(--line);font-size:12px;letter-spacing:.3em;color:var(--accent);font-weight:700}
+h2{font-size:26px;line-height:1.45;margin:10px 0 14px}
+.refs{margin:44px 0 0;padding:22px 0 0;border-top:1px solid var(--line)}
+.refs h3{font-size:15px;letter-spacing:.06em;color:var(--muted);margin:0 0 12px}
+.refs ul{margin:0;padding-left:20px}.refs li{font-size:14px;color:#45536a;margin-bottom:6px}
+.refs a{color:var(--accent);text-decoration:none}
+.postlist{list-style:none;margin:30px 0 0;padding:0}
+.postlist li{border-top:1px solid var(--line);padding:22px 0 16px}
+.postlist h2{font-size:21px;margin:0;padding:0;border:0;line-height:1.5}
+.postlist h2 a{color:var(--ink);text-decoration:none}
+.postlist h2 a:hover{color:var(--accent)}
+.postlist .en{color:var(--muted);font-size:13px;font-style:italic;margin-top:2px}
+.postlist .date{font-size:13px;color:var(--muted)}
+.postlist p{margin:8px 0 0;color:#38455a}
+footer{max-width:820px;margin:0 auto;padding:22px 24px 46px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <header class="site">
+    <div class="brand">agentic 笔记 <span>/</span> harness analysis</div>
+    <nav><a href="../index.html">首页</a><a href="#">系列</a><a href="#">关于</a></nav>
+  </header>
+  <main>    <article>
+      <p class="kicker">harness analysis · 11</p>
+      <h1>三种部署形态：单进程、K8s 沙箱、Client/Server</h1>
+      <p class="subtitle">Three Deployment Shapes: Single Process, K8s Sandboxes, Client/Server</p>
+      <p class="meta">2026-10-21 · 双语 · 8 张架构图 · agentic 笔记</p>
+      <p class="lede">部署形态决定了运维成本与安全边界。这一篇把三个项目的选择摆在一起，给出按规模选择的判断标准。</p>
+      <p>单进程（Octop）：一个进程承载 Web、IM、cron，状态落数据库，重启即恢复。适合家庭、小团队与内部工具，部署成本最低。超过一定并发后，纵向扩展的天花板会先到。</p>
+      <p>K8s 沙箱（Substrate）：每个 agent 一个沙箱，池化 worker，快照恢复。适合多租户、不可信代码执行与高密度场景。代价是一整套集群运维与安全策略的维护。</p>
+      <p>Client/server（opencode）：服务端持有会话，TUI、桌面、IDE 都是客户端。适合需要多端一致体验的编码 agent。代价是客户端分发与服务端状态管理。</p>
+      <p>选择标准可以更朴素：先问“谁在跑、跑在哪、能不能信任”。如果 agent 只服务一个团队、跑在自己机器上，单进程足够；如果 agent 互相不可信、共享集群，沙箱是底线；如果用户体验的核心是“在哪都能接着干”，client/server 是对的形状。</p>
+      <p>备份要演练：没恢复过的备份等于没有备份。至少每季度做一次从零恢复的演练，把 RTO 与 RPO 写下来，而不是只写在 PPT 里。</p>
+      <p>升级要可回滚：数据库 schema 迁移与镜像版本绑定，回滚脚本与升级脚本同时提交；生产事故大多死在“升得上去、退不下来”。</p>
+      <p>灰度发布对 harness 同样适用：先放 1% 流量到新版本，观察成功率与成本，再逐步放大。</p>
+      <p>密钥管理要可轮转：定期轮换、双密钥过渡、自动吊销，别让一个长期 token 成为单点。</p>
+      <p>运维手册要写给“凌晨三点的人”：一页纸的故障处置流程，比一百页的架构文档更能救火。</p>
+      <p class="figs-title">Architecture figures</p>
+      <figure>
+        <img src="../assets/a11-f01.png" alt="figure 1">
+        <figcaption>图 1 · Deployment stack / Fig. 1 — Deployment stack</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a11-f02.png" alt="figure 2">
+        <figcaption>图 2 · Deployment decision path / Fig. 2 — Deployment decision path</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a11-f03.png" alt="figure 3">
+        <figcaption>图 3 · Operational concerns / Fig. 3 — Operational concerns</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a11-f04.png" alt="figure 4">
+        <figcaption>图 4 · When each shape wins / Fig. 4 — When each shape wins</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a11-f05.png" alt="figure 5">
+        <figcaption>图 5 · Going to production / Fig. 5 — Going to production</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a11-f06.png" alt="figure 6">
+        <figcaption>图 6 · Requests through deployment / Fig. 6 — Requests through deployment</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a11-f07.png" alt="figure 7">
+        <figcaption>图 7 · Production checklist / Fig. 7 — Production checklist</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/a11-f08.png" alt="figure 8">
+        <figcaption>图 8 · Three shapes, three costs / Fig. 8 — Three shapes, three costs</figcaption>
+      </figure>
+      <p class="divider">ENGLISH</p>
+      <h2>Three Deployment Shapes: Single Process, K8s Sandboxes, Client/Server</h2>
+      <p class="lede">Deployment shape decides operations cost and security boundary. This piece lays out the three projects' choices and a scale-based way to pick.</p>
+      <p>Single process (Octop): Web, IM and cron in one process, state in a database, recovery by restart. Best for households, small teams and internal tools — the cheapest to operate, with a vertical-scaling ceiling.</p>
+      <p>K8s sandboxes (Substrate): one sandbox per agent, pooled workers, snapshot resume. Best for multi-tenant, untrusted-code and high-density settings. The price is a full cluster and security-policy operation.</p>
+      <p>Client/server (opencode): the server holds the session; TUI, desktop and IDE are clients. Best for coding agents that need a consistent multi-surface experience. The price is client distribution and server-side state.</p>
+      <p>The choice rule is simpler than it sounds: who runs it, where, and can you trust them? One team on its own machines warrants a single process; mutually untrusted agents on shared hardware demand sandboxes; if "continue anywhere" is the product, client/server is the right shape.</p>
+      <p>Rehearse backups: an untested backup is no backup. Run a from-scratch restore quarterly and write down RTO and RPO.</p>
+      <p>Canary releases apply to harnesses too: send one percent of traffic to the new version, watch success rate and cost, then widen.</p>
+      <p>Keys must rotate: scheduled rotation, dual-key transitions, automatic revocation. And write the runbook for the person on call at 3 a.m. — one page of recovery steps beats a hundred pages of architecture.</p>
+      <div class="refs">
+        <h3>参考</h3>
+        <ul>
+        <li><a href="https://github.com/TencentCloud/Octop">TencentCloud/Octop</a></li>
+        <li><a href="https://github.com/agent-substrate/substrate">agent-substrate/substrate</a></li>
+        <li><a href="https://github.com/anomalyco/opencode">anomalyco/opencode</a></li>
+        </ul>
+      </div>
+    </article></main>
+  <footer><div>© 2026 agentic 笔记 · 个人研究笔记</div><div><a href="#">RSS</a> · <a href="#">归档</a></div></footer>
+</body>
+</html>
